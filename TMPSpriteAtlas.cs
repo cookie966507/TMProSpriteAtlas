@@ -43,6 +43,110 @@ public class TMPSpriteAtlas : TMP_SpriteAsset
 #if UNITY_EDITOR
 
 	//--------------------------------------------------------------------------
+	// CachedSpriteSettings
+	private struct CachedSpriteSettings
+	{
+		public float glyphScale;
+		public float bearingXDelta;
+		public float bearingYDelta;
+		public float advanceDelta;
+		public float characterScale;
+		public uint unicode;
+		public bool hasCustomGlyphScale;
+		public bool hasCustomBearingX;
+		public bool hasCustomBearingY;
+		public bool hasCustomAdvance;
+		public bool hasCustomCharacterScale;
+		public bool hasCustomUnicode;
+	}
+
+	//--------------------------------------------------------------------------
+	// CacheCustomSettings
+	//--------------------------------------------------------------------------
+	private Dictionary<string, CachedSpriteSettings> CacheCustomSettings()
+	{
+		var cache = new Dictionary<string, CachedSpriteSettings>();
+		if(spriteGlyphTable == null || spriteCharacterTable == null)return cache;
+
+		var glyphLookup = new Dictionary<uint, TMP_SpriteGlyph>();
+		foreach(var glyph in spriteGlyphTable)
+			glyphLookup[glyph.index] = glyph;
+
+		foreach(var character in spriteCharacterTable)
+		{
+			if(string.IsNullOrEmpty(character.name))continue;
+			if(!glyphLookup.TryGetValue(character.glyphIndex, out var glyph))continue;
+
+			var settings = new CachedSpriteSettings();
+
+			settings.glyphScale = glyph.scale;
+			settings.hasCustomGlyphScale = !Mathf.Approximately(glyph.scale, 1.0f);
+
+			settings.bearingXDelta = glyph.metrics.horizontalBearingX - 0.0f;
+			settings.hasCustomBearingX = !Mathf.Approximately(settings.bearingXDelta, 0.0f);
+
+			settings.bearingYDelta = glyph.metrics.horizontalBearingY - glyph.metrics.height;
+			settings.hasCustomBearingY = !Mathf.Approximately(settings.bearingYDelta, 0.0f);
+
+			settings.advanceDelta = glyph.metrics.horizontalAdvance - glyph.metrics.width;
+			settings.hasCustomAdvance = !Mathf.Approximately(settings.advanceDelta, 0.0f);
+
+			settings.characterScale = character.scale;
+			settings.hasCustomCharacterScale = !Mathf.Approximately(character.scale, 1.0f);
+
+			settings.unicode = character.unicode;
+			settings.hasCustomUnicode = character.unicode != 0xFFFE;
+
+			if(settings.hasCustomGlyphScale || settings.hasCustomBearingX ||
+			   settings.hasCustomBearingY || settings.hasCustomAdvance ||
+			   settings.hasCustomCharacterScale || settings.hasCustomUnicode)
+			{
+				cache[character.name] = settings;
+			}
+		}
+
+		return cache;
+	}
+
+	//--------------------------------------------------------------------------
+	// RestoreCustomSettings
+	//--------------------------------------------------------------------------
+	private void RestoreCustomSettings(TMP_SpriteAsset atlas, Dictionary<string, CachedSpriteSettings> cache)
+	{
+		if(cache == null || cache.Count == 0)return;
+		if(atlas.spriteGlyphTable == null || atlas.spriteCharacterTable == null)return;
+
+		var glyphLookup = new Dictionary<uint, TMP_SpriteGlyph>();
+		foreach(var glyph in atlas.spriteGlyphTable)
+			glyphLookup[glyph.index] = glyph;
+
+		foreach(var character in atlas.spriteCharacterTable)
+		{
+			if(string.IsNullOrEmpty(character.name))continue;
+			if(!cache.TryGetValue(character.name, out var settings))continue;
+			if(!glyphLookup.TryGetValue(character.glyphIndex, out var glyph))continue;
+
+			if(settings.hasCustomGlyphScale)
+				glyph.scale = settings.glyphScale;
+
+			if(settings.hasCustomBearingX || settings.hasCustomBearingY || settings.hasCustomAdvance)
+			{
+				var m = glyph.metrics;
+				float bearingX = settings.hasCustomBearingX ? settings.bearingXDelta : m.horizontalBearingX;
+				float bearingY = settings.hasCustomBearingY ? (m.height + settings.bearingYDelta) : m.horizontalBearingY;
+				float advance = settings.hasCustomAdvance ? (m.width + settings.advanceDelta) : m.horizontalAdvance;
+				glyph.metrics = new GlyphMetrics(m.width, m.height, bearingX, bearingY, advance);
+			}
+
+			if(settings.hasCustomCharacterScale)
+				character.scale = settings.characterScale;
+
+			if(settings.hasCustomUnicode)
+				character.unicode = settings.unicode;
+		}
+	}
+
+	//--------------------------------------------------------------------------
 	// Clear
 	//--------------------------------------------------------------------------
 	public void Clear()
@@ -70,11 +174,23 @@ public class TMPSpriteAtlas : TMP_SpriteAsset
 	//--------------------------------------------------------------------------
 	public void UpdateSpriteData()
 	{
+		// Cache customized settings BEFORE clearing
+		var cachedSettings = CacheCustomSettings();
+		var fallbackCaches = new Dictionary<string, Dictionary<string, CachedSpriteSettings>>();
+		if(fallbackSpriteAssets != null)
+		{
+			foreach(var fallback in fallbackSpriteAssets)
+			{
+				if(fallback is TMPSpriteAtlas fallbackAtlas)
+					fallbackCaches[fallback.name] = fallbackAtlas.CacheCustomSettings();
+			}
+		}
+
 		// Cache old assets
 		Dictionary<string, object> oldLookup = new();
 		foreach(var asset in AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GetAssetPath(this)))
 			oldLookup[asset.name] = asset;
-		
+
 		// Clear existing data
 		Clear();
 
@@ -120,6 +236,18 @@ public class TMPSpriteAtlas : TMP_SpriteAsset
 
 				// Add sprites
 				AddSprites(atlasAsset);
+
+				// Restore custom settings
+				if(atlasIndex == 0)
+				{
+					RestoreCustomSettings(atlasAsset, cachedSettings);
+				}
+				else
+				{
+					string atlasName = spriteAtlas.name + "_" + atlasIndex;
+					if(fallbackCaches.TryGetValue(atlasName, out var fallbackCache))
+						RestoreCustomSettings(atlasAsset, fallbackCache);
+				}
 			}
 		}
 
