@@ -32,9 +32,18 @@ namespace UnityEngine.TextCore
 		//--------------------------------------------------------------------------
 		// Create/Update Sprite Asset
 		//--------------------------------------------------------------------------
+#if UNITY_6000_0_OR_NEWER
 		[MenuItem("Assets/Create/Text Core/SpriteAtlas Asset", true, 5000)]
+#else
+		[MenuItem("Assets/Create/Text/SpriteAtlas Asset", true, 5000)]
+#endif
 		private static bool CreateAssetValidate() => Selection.activeObject is SpriteAtlas;
+
+#if UNITY_6000_0_OR_NEWER
 		[MenuItem("Assets/Create/Text Core/SpriteAtlas Asset", false, 5000)]
+#else
+		[MenuItem("Assets/Create/Text/SpriteAtlas Asset", false, 5000)]
+#endif
 		private static void CreateAsset()
 		{
 			// Get the selected SpriteAtlas
