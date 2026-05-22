@@ -23,19 +23,18 @@
 //------------------------------------------------------------------------------
 using System.IO;
 using UnityEditor;
-using UnityEngine;
 using UnityEngine.U2D;
 
-namespace TMPro
+namespace UnityEngine.TextCore
 {
-	public static class TMPSpriteAssetMenu
+	public static class TCSpriteAssetMenu
 	{
 		//--------------------------------------------------------------------------
-		// Create Sprite Asset
+		// Create/Update Sprite Asset
 		//--------------------------------------------------------------------------
-		[MenuItem("Assets/Create/TextMeshPro/SpriteAtlas Asset", true, 5000)]
+		[MenuItem("Assets/Create/Text Core/SpriteAtlas Asset", true, 5000)]
 		private static bool CreateAssetValidate() => Selection.activeObject is SpriteAtlas;
-		[MenuItem("Assets/Create/TextMeshPro/SpriteAtlas Asset", false, 5000)]
+		[MenuItem("Assets/Create/Text Core/SpriteAtlas Asset", false, 5000)]
 		private static void CreateAsset()
 		{
 			// Get the selected SpriteAtlas
@@ -43,12 +42,14 @@ namespace TMPro
 			var spriteAtlasPath = AssetDatabase.GetAssetPath(spriteAtlas);
 
 			// Create or load a asset
-			var spriteAsset = AssetDatabase.LoadAssetAtPath<TMPSpriteAtlas>(Path.GetDirectoryName(spriteAtlasPath) + "/" + spriteAtlas.name + "_TMPro.asset");
-			if(spriteAsset == null)
-			{
-				spriteAsset = ScriptableObject.CreateInstance<TMPSpriteAtlas>();
-				AssetDatabase.CreateAsset(spriteAsset, Path.GetDirectoryName(spriteAtlasPath) + "/" + spriteAtlas.name + "_TMPro.asset" );
+			var spriteAsset = AssetDatabase.LoadAssetAtPath<TCSpriteAtlas>(Path.GetDirectoryName(spriteAtlasPath) + "/" + spriteAtlas.name + "_TC.asset");
+			if(spriteAsset == null) {
+				spriteAsset = ScriptableObject.CreateInstance<TCSpriteAtlas>();
+				AssetDatabase.CreateAsset(spriteAsset, Path.GetDirectoryName(spriteAtlasPath) + "/" + spriteAtlas.name + "_TC.asset");
 			}
+			if(TCSpriteAtlas.emptyTexture == null)
+				TCSpriteAtlas.emptyTexture = new Texture2D(0, 0);
+			TCSpriteAtlas.SetField(spriteAsset, "m_SpriteAtlasTexture", TCSpriteAtlas.emptyTexture);
 			spriteAsset.spriteAtlas = spriteAtlas;
 			spriteAsset.UpdateSpriteData();
 		}

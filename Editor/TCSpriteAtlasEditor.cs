@@ -21,36 +21,36 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //------------------------------------------------------------------------------
-using System.IO;
+using System.Reflection;
 using UnityEditor;
-using UnityEngine;
-using UnityEngine.U2D;
 
-namespace TMPro
+
+namespace UnityEngine.TextCore 
 {
-	public static class TMPSpriteAssetMenu
+	[CustomEditor(typeof(TCSpriteAtlas))]
+	public class TCSpriteAssetImporterEditor : Editor
 	{
 		//--------------------------------------------------------------------------
-		// Create Sprite Asset
+		// Reflection
 		//--------------------------------------------------------------------------
-		[MenuItem("Assets/Create/TextMeshPro/SpriteAtlas Asset", true, 5000)]
-		private static bool CreateAssetValidate() => Selection.activeObject is SpriteAtlas;
-		[MenuItem("Assets/Create/TextMeshPro/SpriteAtlas Asset", false, 5000)]
-		private static void CreateAsset()
-		{
-			// Get the selected SpriteAtlas
-			var spriteAtlas = (SpriteAtlas)Selection.activeObject;
-			var spriteAtlasPath = AssetDatabase.GetAssetPath(spriteAtlas);
+		private Editor _textSpriteAssetEditor;
 
-			// Create or load a asset
-			var spriteAsset = AssetDatabase.LoadAssetAtPath<TMPSpriteAtlas>(Path.GetDirectoryName(spriteAtlasPath) + "/" + spriteAtlas.name + "_TMPro.asset");
-			if(spriteAsset == null)
+		public void OnEnable() {
+			_textSpriteAssetEditor = Editor.CreateEditor(targets, typeof(UnityEditor.TextCore.Text.TextSettingsEditor).Assembly
+				.GetType("UnityEditor.TextCore.Text.TextSpriteAssetEditor"));
+			_textSpriteAssetEditor.GetType().GetMethod(nameof(OnEnable)).Invoke(_textSpriteAssetEditor, null);
+		}
+
+		public override void OnInspectorGUI()
+		{
+			if(GUILayout.Button(new GUIContent("Update from SpriteAtlas")))
 			{
-				spriteAsset = ScriptableObject.CreateInstance<TMPSpriteAtlas>();
-				AssetDatabase.CreateAsset(spriteAsset, Path.GetDirectoryName(spriteAtlasPath) + "/" + spriteAtlas.name + "_TMPro.asset" );
+				var asset = target as TCSpriteAtlas;
+				asset.UpdateSpriteData();
+				EditorUtility.SetDirty(target);
+				return;
 			}
-			spriteAsset.spriteAtlas = spriteAtlas;
-			spriteAsset.UpdateSpriteData();
+			_textSpriteAssetEditor.OnInspectorGUI();
 		}
 	}
 }
