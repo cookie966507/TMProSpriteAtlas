@@ -220,7 +220,6 @@ namespace TMPro
 
 					// Add texture and update material
 					atlasAsset.spriteSheet = atlasTexture;
-					ShaderUtilities.GetShaderPropertyIDs();
 					Shader shader = Shader.Find("TextMeshPro/Sprite");
 
 					string materialName = ((atlasIndex == 0) ? this.name : spriteAtlas.name + "_" + atlasIndex) + "_material";
